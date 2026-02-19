@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BidPulse — Procurement Intelligence Engine</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#000;overflow-x:hidden;font-family:'Inter',-apple-system,sans-serif;color:#f5f5f7}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#3a3a3c;border-radius:3px}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes gradShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+input,select,textarea{background:#1c1c1e;border:1px solid #2a2a2e;color:#f5f5f7;border-radius:7px;padding:7px 11px;font-size:12px;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s}
+input:focus,select:focus,textarea:focus{border-color:#FF9500}
+select option{background:#1c1c1e;color:#f5f5f7}
+textarea{resize:vertical;min-height:60px}
+.row{transition:background .12s;cursor:pointer}.row:hover{background:#1c1c1e!important}
+.chip{padding:4px 10px;border-radius:5px;font-size:10px;font-weight:600;letter-spacing:.04em;cursor:pointer;transition:all .12s;border:1px solid transparent;font-family:'JetBrains Mono',monospace;user-select:none;display:inline-block}
+.tab{padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;border:none;background:transparent;color:#8e8e93}
+.tab:hover{color:#f5f5f7}.tab.on{background:#2a2a2e;color:#FF9500}
+.tag{display:inline-block;padding:2px 6px;border-radius:3px;font-size:9px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.jm{font-family:'JetBrains Mono',monospace}.sg{font-family:'Space Grotesk',sans-serif}
+.si{padding:5px 11px;border-radius:6px;cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:7px;font-size:11px;user-select:none}
+.si:hover{background:#2a2a2e}.si.on{background:#FF950018;color:#FF9500}
+.btn{padding:10px 20px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif}
+.btn-primary{background:linear-gradient(135deg,#FF9500,#FF6B00);color:#fff;box-shadow:0 3px 16px rgba(255,149,0,.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 5px 20px rgba(255,149,0,.4)}
+.btn-secondary{background:#2a2a2e;color:#f5f5f7;border:1px solid #3a3a3c}
+.btn-secondary:hover{background:#3a3a3c}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:11px;color:#8e8e93;margin-bottom:4px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+.form-group input,.form-group select,.form-group textarea{width:100%}
+.check-row{display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;font-size:12px;color:#a1a1a6}
+.check-row:hover{color:#f5f5f7}
+.check-box{width:16px;height:16px;border-radius:4px;border:1px solid #3a3a3c;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .15s;flex-shrink:0}
+.check-box.checked{background:#FF9500;border-color:#FF9500;color:#fff}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useEffect,useMemo,useCallback}=React;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DATA — All 50 States with REAL procurement portal URLs
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const ALL_STATES=[
+{code:"AL",name:"Alabama",portal:"https://purchasing.alabama.gov",portalName:"Alabama Purchasing",reg:"https://purchasing.alabama.gov/vendor-registration",region:"Southeast"},
+{code:"AK",name:"Alaska",portal:"https://iris-vss.prior.alaska.gov/webapp/PRDVSS1X1/AltSelfService",portalName:"Alaska PRIOR System",reg:"https://iris-vss.prior.alaska.gov",region:"West"},
+{code:"AZ",name:"Arizona",portal:"https://spo.az.gov/contracts-and-solicitations",portalName:"Arizona SPO ProcureAZ",reg:"https://procure.az.gov/bso/login",region:"West"},
+{code:"AR",name:"Arkansas",portal:"https://www.arkansas.gov/dfa/procurement",portalName:"Arkansas Procurement",reg:"https://www.arkansas.gov/dfa/procurement/vendor-registration",region:"Southeast"},
+{code:"CA",name:"California",portal:"https://caleprocure.ca.gov/pages/public-search.aspx",portalName:"Cal eProcure",reg:"https://caleprocure.ca.gov/pages/Vendor/vendor-registration.aspx",region:"West"},
+{code:"CO",name:"Colorado",portal:"https://bids.coloradovspe.org/co/portal/index.html",portalName:"Colorado BIDS",reg:"https://bids.coloradovspe.org/co/portal/vendor/register",region:"West"},
+{code:"CT",name:"Connecticut",portal:"https://biznet.ct.gov/SCP_Search/Default.aspx",portalName:"CT BizNet",reg:"https://biznet.ct.gov/SCP_Search/RegisterSCP.aspx",region:"Northeast"},
+{code:"DE",name:"Delaware",portal:"https://bids.delaware.gov",portalName:"Delaware Bids",reg:"https://bids.delaware.gov/vendor",region:"Northeast"},
+{code:"FL",name:"Florida",portal:"https://vendor.myfloridamarketplace.com",portalName:"FL MyMarketplace VBS",reg:"https://vendor.myfloridamarketplace.com/vms-web/spring/vendor-registration",region:"Southeast"},
+{code:"GA",name:"Georgia",portal:"https://ssl.doas.state.ga.us/PRSapp/PR/bid_search.jsp",portalName:"Georgia Procurement Registry",reg:"https://doas.ga.gov/state-purchasing/vendor-resources",region:"Southeast"},
+{code:"HI",name:"Hawaii",portal:"https://hands.hawaii.gov/hands/welcome",portalName:"Hawaii HANDS",reg:"https://hands.hawaii.gov/hands/welcome",region:"West"},
+{code:"ID",name:"Idaho",portal:"https://purchasing.idaho.gov/current-bids",portalName:"Idaho Purchasing",reg:"https://purchasing.idaho.gov/vendor-registration",region:"West"},
+{code:"IL",name:"Illinois",portal:"https://www2.illinois.gov/sites/bidbuy/Pages/default.aspx",portalName:"Illinois BidBuy",reg:"https://www2.illinois.gov/sites/bidbuy/Pages/VendorReg.aspx",region:"Midwest"},
+{code:"IN",name:"Indiana",portal:"https://www.in.gov/idoa/procurement/current-business-opportunities",portalName:"Indiana IDOA",reg:"https://www.in.gov/idoa/procurement/vendor-information",region:"Midwest"},
+{code:"IA",name:"Iowa",portal:"https://bidopportunities.iowa.gov/Home/Index",portalName:"Iowa Bid Opportunities",reg:"https://das.iowa.gov/procurement/vendors",region:"Midwest"},
+{code:"KS",name:"Kansas",portal:"https://admin.ks.gov/offices/procurement-and-contracts/bid-solicitations",portalName:"Kansas Procurement",reg:"https://admin.ks.gov/offices/procurement-and-contracts/vendor-information",region:"Midwest"},
+{code:"KY",name:"Kentucky",portal:"https://finance.ky.gov/procurement/eprocurement/Pages/default.aspx",portalName:"Kentucky eProcurement",reg:"https://finance.ky.gov/procurement/Pages/VendorRegistration.aspx",region:"Southeast"},
+{code:"LA",name:"Louisiana",portal:"https://wwwcfprd.doa.louisiana.gov/osp/lapac/pubMain.cfm",portalName:"Louisiana LaPAC",reg:"https://wwwcfprd.doa.louisiana.gov/osp/lapac/vendor/vendorReg.cfm",region:"Southeast"},
+{code:"ME",name:"Maine",portal:"https://www.maine.gov/purchases/venbid/bids.shtml",portalName:"Maine Purchases",reg:"https://www.maine.gov/purchases/venbid/registr.shtml",region:"Northeast"},
+{code:"MD",name:"Maryland",portal:"https://emaryland.buyspeed.com/bso/view/search/external/advancedSearchBid.xhtml",portalName:"eMaryland Marketplace Advantage",reg:"https://emaryland.buyspeed.com/bso/view/login/vendor/register",region:"Northeast"},
+{code:"MA",name:"Massachusetts",portal:"https://www.commbuys.com/bso/external/publicBids.sdo",portalName:"COMMBUYS",reg:"https://www.commbuys.com/bso/external/bidderRegistration.sdo",region:"Northeast"},
+{code:"MI",name:"Michigan",portal:"https://sigma.michigan.gov/webapp/PRDVSS2X1/AltSelfService",portalName:"Michigan SIGMA VSS",reg:"https://sigma.michigan.gov/webapp/PRDVSS2X1/AltSelfService",region:"Midwest"},
+{code:"MN",name:"Minnesota",portal:"https://mn.gov/admin/government/purchasing-contracting/open-bids",portalName:"Minnesota Admin Open Bids",reg:"https://mn.gov/admin/government/purchasing-contracting/vendor-resources",region:"Midwest"},
+{code:"MS",name:"Mississippi",portal:"https://www.dfa.ms.gov/purchasing-travel-and-fleet-management/purchasing/bid-opportunities",portalName:"Mississippi DFA",reg:"https://www.dfa.ms.gov/purchasing-travel-and-fleet-management/purchasing/vendor-registration",region:"Southeast"},
+{code:"MO",name:"Missouri",portal:"https://missouribuys.mo.gov/bso/external/publicBids.sdo",portalName:"MissouriBUYS",reg:"https://missouribuys.mo.gov/bso/external/bidderRegistration.sdo",region:"Midwest"},
+{code:"MT",name:"Montana",portal:"https://vendor.mt.gov",portalName:"Montana Vendor Portal",reg:"https://vendor.mt.gov/vendor/register",region:"West"},
+{code:"NE",name:"Nebraska",portal:"https://das.nebraska.gov/materiel/purchasing/bidopp.html",portalName:"Nebraska Materiel",reg:"https://das.nebraska.gov/materiel/purchasing/vendor.html",region:"Midwest"},
+{code:"NV",name:"Nevada",portal:"https://nevadaepro.com/bso/view/search/external/advancedSearchBid.xhtml",portalName:"Nevada ePro",reg:"https://nevadaepro.com/bso/view/login/vendor/register",region:"West"},
+{code:"NH",name:"New Hampshire",portal:"https://apps.das.nh.gov/bidscontracts/bids.aspx",portalName:"NH Bids & Contracts",reg:"https://apps.das.nh.gov/bidscontracts/vendorregistration.aspx",region:"Northeast"},
+{code:"NJ",name:"New Jersey",portal:"https://www.njstart.gov/bso/external/publicBids.sdo",portalName:"NJSTART",reg:"https://www.njstart.gov/bso/external/bidderRegistration.sdo",region:"Northeast"},
+{code:"NM",name:"New Mexico",portal:"https://www.generalservices.state.nm.us/state-purchasing/active-bid-list",portalName:"New Mexico GSD",reg:"https://www.generalservices.state.nm.us/state-purchasing/vendor-registration",region:"West"},
+{code:"NY",name:"New York",portal:"https://nycontract.ogs.ny.gov",portalName:"New York OGS Contract System",reg:"https://nycontract.ogs.ny.gov/vendor",region:"Northeast"},
+{code:"NC",name:"North Carolina",portal:"https://www.ips.state.nc.us/ips/AGENCY/PDF/CONTRACT/BidSearch2.aspx",portalName:"NC Interactive Purchasing",reg:"https://ncadmin.nc.gov/businesses/vendor-registration",region:"Southeast"},
+{code:"ND",name:"North Dakota",portal:"https://www.nd.gov/omb/agency/procurement/active-bids",portalName:"ND Office of Management & Budget",reg:"https://www.nd.gov/omb/vendor",region:"Midwest"},
+{code:"OH",name:"Ohio",portal:"https://procure.ohio.gov/proc/searchOpportunities.asp",portalName:"Ohio Procure",reg:"https://procure.ohio.gov/proc/vendorRegistration.asp",region:"Midwest"},
+{code:"OK",name:"Oklahoma",portal:"https://oklahoma.gov/omes/services/purchasing/solicitations.html",portalName:"Oklahoma OMES",reg:"https://oklahoma.gov/omes/services/purchasing/vendor-registration.html",region:"Southeast"},
+{code:"OR",name:"Oregon",portal:"https://orpin.oregon.gov/open.dll/welcome",portalName:"Oregon ORPIN",reg:"https://orpin.oregon.gov/open.dll/welcome?vid=register",region:"West"},
+{code:"PA",name:"Pennsylvania",portal:"https://www.emarketplace.state.pa.us/BidSearch.aspx",portalName:"PA eMarketplace",reg:"https://www.emarketplace.state.pa.us/Vendor/VendorRegistration.aspx",region:"Northeast"},
+{code:"RI",name:"Rhode Island",portal:"https://www.purchasing.ri.gov/bidding/bidlist.aspx",portalName:"Rhode Island Purchasing",reg:"https://www.purchasing.ri.gov/bidding/vendorreg.aspx",region:"Northeast"},
+{code:"SC",name:"South Carolina",portal:"https://procurement.sc.gov/solicit",portalName:"SC Procurement Services",reg:"https://procurement.sc.gov/vendor",region:"Southeast"},
+{code:"SD",name:"South Dakota",portal:"https://bop.sd.gov/council/bids.aspx",portalName:"South Dakota BOP",reg:"https://bop.sd.gov/vendor",region:"Midwest"},
+{code:"TN",name:"Tennessee",portal:"https://tn.gov/generalservices/procurement/central-procurement-office--cpo-/supplier-information/find-open-solicitations.html",portalName:"Tennessee CPO",reg:"https://tn.gov/generalservices/procurement/supplier-information.html",region:"Southeast"},
+{code:"TX",name:"Texas",portal:"https://www.txsmartbuy.com/sp",portalName:"Texas SmartBuy / ESBD",reg:"https://comptroller.texas.gov/purchasing/vendor",region:"Southeast"},
+{code:"UT",name:"Utah",portal:"https://bids.utah.gov",portalName:"Utah Bids",reg:"https://bids.utah.gov/vendor",region:"West"},
+{code:"VT",name:"Vermont",portal:"https://bgs.vermont.gov/purchasing/bids",portalName:"Vermont BGS Purchasing",reg:"https://bgs.vermont.gov/purchasing/vendor-registration",region:"Northeast"},
+{code:"VA",name:"Virginia",portal:"https://eva.virginia.gov/pages/eva-public-search.htm",portalName:"eVA Virginia",reg:"https://eva.virginia.gov/pages/eva-registration.htm",region:"Southeast"},
+{code:"WA",name:"Washington",portal:"https://des.wa.gov/services/contracting-purchasing/bid-opportunities",portalName:"Washington DES WEBS",reg:"https://des.wa.gov/services/contracting-purchasing/doing-business-state/vendor-registration",region:"West"},
+{code:"WV",name:"West Virginia",portal:"https://www.state.wv.us/admin/purchase/Bids/default.html",portalName:"West Virginia Purchasing",reg:"https://www.state.wv.us/admin/purchase/vend_reg.html",region:"Southeast"},
+{code:"WI",name:"Wisconsin",portal:"https://vendornet.wi.gov/Bids",portalName:"Wisconsin VendorNet",reg:"https://vendornet.wi.gov/Vendor/VendorRegistration",region:"Midwest"},
+{code:"WY",name:"Wyoming",portal:"https://ai.wyo.gov/divisions/procurement/bid-opportunities",portalName:"Wyoming A&I Procurement",reg:"https://ai.wyo.gov/divisions/procurement/vendor-information",region:"West"},
+];
+
+const FEDERAL_AGENCIES=[
+{code:"DOD",name:"Dept of Defense",color:"#1B3A4B",sub:["Army","Navy","Air Force","Marines","DISA","DLA"]},
+{code:"DHS",name:"Homeland Security",color:"#003366",sub:["FEMA","CBP","ICE","TSA","Coast Guard"]},
+{code:"DOT",name:"Transportation",color:"#0071BC",sub:["FAA","FHWA","FTA","NHTSA"]},
+{code:"VA",name:"Veterans Affairs",color:"#112E51",sub:["VHA","VBA","NCA"]},
+{code:"GSA",name:"General Services",color:"#205493",sub:["FAS","PBS"]},
+{code:"DOE",name:"Energy",color:"#2E8540",sub:["NNSA","EERE","Sandia","ORNL"]},
+{code:"HHS",name:"Health & Human Svc",color:"#02BFE7",sub:["CDC","FDA","NIH","CMS"]},
+{code:"DOI",name:"Interior",color:"#4A7729",sub:["NPS","BLM","USFWS","USGS"]},
+{code:"USDA",name:"Agriculture",color:"#4B7F52",sub:["Forest Service","NRCS","APHIS"]},
+{code:"DOJ",name:"Justice",color:"#323A45",sub:["FBI","DEA","BOP","ATF"]},
+{code:"NASA",name:"NASA",color:"#0B3D91",sub:["JSC","KSC","GSFC","JPL"]},
+{code:"EPA",name:"EPA",color:"#2E8540",sub:[]},
+{code:"USACE",name:"Army Corps of Eng.",color:"#6B3A2A",sub:[]},
+{code:"SBA",name:"Small Business Admin",color:"#D83933",sub:[]},
+];
+
+const REGIONS=[{name:"All Regions",key:"all",color:"#FF9500"},{name:"Midwest",key:"Midwest",color:"#5E5CE6"},{name:"Northeast",key:"Northeast",color:"#30D5C8"},{name:"Southeast",key:"Southeast",color:"#FF6B6B"},{name:"West",key:"West",color:"#34C759"}];
+const NOTICE_TYPES=[{key:"solicitation",label:"Solicitation",color:"#FF9500"},{key:"presolicitation",label:"Pre-Sol",color:"#5E5CE6"},{key:"rfp",label:"RFP",color:"#AF52DE"},{key:"rfq",label:"RFQ",color:"#FF375F"},{key:"ifb",label:"IFB",color:"#FFCC00"},{key:"combined",label:"Combined",color:"#FF6B6B"},{key:"sole_source",label:"Sole Source",color:"#FF3B30"}];
+const SET_ASIDES=[{key:"none",label:"Full & Open",color:"#8e8e93"},{key:"sba",label:"Small Business",color:"#FF9500"},{key:"8a",label:"8(a)",color:"#AF52DE"},{key:"hubzone",label:"HUBZone",color:"#30D5C8"},{key:"sdvosb",label:"SDVOSB",color:"#FF6B6B"},{key:"wosb",label:"WOSB",color:"#FF375F"}];
+
+const PRODUCTS=[
+{name:"Portable Generators 7500W",psc:"6115",cat:"Power",up:[680,1200],mg:[.12,.28]},
+{name:"Tactical Pickup Trucks",psc:"2320",cat:"Fleet",up:[38000,52000],mg:[.04,.09]},
+{name:"HVAC Rooftop Units 5-Ton",psc:"4120",cat:"HVAC",up:[3200,5800],mg:[.1,.22]},
+{name:"Cisco Catalyst 9300 Switches",psc:"7010",cat:"IT",up:[2200,3800],mg:[.08,.16]},
+{name:"LED Parking Lot Fixtures",psc:"6150",cat:"Electrical",up:[180,420],mg:[.15,.35]},
+{name:"Snow Plow Attachments HD",psc:"3810",cat:"Fleet",up:[2800,4500],mg:[.1,.2]},
+{name:"AED Defibrillators",psc:"6515",cat:"Medical",up:[1200,1800],mg:[.1,.2]},
+{name:"Steel Shelving Industrial",psc:"5680",cat:"Construction",up:[280,520],mg:[.18,.32]},
+{name:"Pressure Washers 4000PSI",psc:"3825",cat:"Facilities",up:[800,1600],mg:[.12,.25]},
+{name:"Safety Hard Hats ANSI",psc:"4240",cat:"Safety",up:[12,28],mg:[.2,.4]},
+{name:"Toner Cartridges HP 58A",psc:"7520",cat:"Office",up:[45,85],mg:[.25,.45]},
+{name:"Diesel Fuel Transfer Pumps",psc:"2910",cat:"Power",up:[420,780],mg:[.15,.28]},
+{name:"Commercial Water Heaters",psc:"4510",cat:"Plumbing",up:[1800,3200],mg:[.1,.22]},
+{name:"Traffic Cones Reflective",psc:"4240",cat:"Safety",up:[8,18],mg:[.2,.35]},
+{name:"UPS Battery Backup 3000VA",psc:"6150",cat:"IT",up:[680,1200],mg:[.1,.22]},
+{name:"Ride-On Floor Scrubbers",psc:"7930",cat:"Facilities",up:[8500,14000],mg:[.08,.16]},
+{name:"Concrete Mix Pallet",psc:"5680",cat:"Construction",up:[280,460],mg:[.15,.28]},
+{name:"Zero-Turn Mowers 60\"",psc:"3810",cat:"Grounds",up:[4200,7800],mg:[.08,.18]},
+{name:"Ballistic Vests IIIA",psc:"4240",cat:"Safety",up:[450,850],mg:[.12,.25]},
+{name:"Server Rack Cabinets 42U",psc:"7010",cat:"IT",up:[1200,2400],mg:[.15,.3]},
+{name:"Ford F-350 Service Bodies",psc:"2320",cat:"Fleet",up:[52000,68000],mg:[.05,.1]},
+{name:"Portable Light Towers",psc:"6115",cat:"Power",up:[4800,8200],mg:[.1,.2]},
+{name:"Chain Link Fencing 500ft",psc:"5680",cat:"Construction",up:[1500,3500],mg:[.2,.35]},
+{name:"Two-Way Radios Motorola",psc:"5820",cat:"Comms",up:[250,500],mg:[.15,.3]},
+];
+
+const STATE_AGENCIES=["Dept of Transportation","General Services","Dept of Administration","Public Safety","Natural Resources","State Patrol","Dept of Health","Education","Corrections","Parks & Recreation","University System","Revenue Dept"];
+const FED_PLACES=["Washington, DC","Fort Liberty, NC","San Antonio, TX","Norfolk, VA","San Diego, CA","Huntsville, AL","Dayton, OH","Joint Base Lewis-McChord, WA"];
+const CONTRACT_TYPES=["Firm Fixed Price","IDIQ","BPA Call","Time & Materials","Cost Plus"];
+const SUPPLIERS=[
+{name:"Grainger Industrial",lt:"3-5 days",loc:"Lake Forest, IL",cage:"0BTP5"},
+{name:"HD Supply",lt:"5-7 days",loc:"Atlanta, GA",cage:"3U4K8"},
+{name:"Ferguson Enterprises",lt:"4-6 days",loc:"Newport News, VA",cage:"1XHJ7"},
+{name:"Fastenal Co.",lt:"2-4 days",loc:"Winona, MN",cage:"0C7G1"},
+{name:"MSC Industrial",lt:"3-5 days",loc:"Melville, NY",cage:"4FBN2"},
+{name:"Global Industrial",lt:"5-8 days",loc:"Port Washington, NY",cage:"7KMV3"},
+{name:"Zoro Tools",lt:"3-5 days",loc:"Buffalo Grove, IL",cage:"8WPQ6"},
+{name:"Genuine Parts Co.",lt:"3-6 days",loc:"Atlanta, GA",cage:"5RTL9"},
+];
+
+function rng(a,b){return a+Math.random()*(b-a)}
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)]}
+const fmtUSD=n=>"$"+n.toLocaleString("en-US",{maximumFractionDigits:0});
+
+function genBids(scope,count){
+  return Array.from({length:count},(_,i)=>{
+    const prod=pick(PRODUCTS),qty=Math.floor(rng(3,200)),uc=rng(prod.up[0],prod.up[1]),mp=rng(prod.mg[0],prod.mg[1]);
+    const tv=qty*uc,ep=tv*mp;
+    const nb=Math.random()>.35?(Math.random()>.55?0:1):Math.floor(rng(2,7));
+    const dl=Math.floor(rng(1,30)),nt=pick(NOTICE_TYPES),sa=pick(SET_ASIDES);
+    const status=nb===0?"no_bids":nb<=1?"low_competition":dl<=3?"closing_soon":"open";
+    const score=Math.round((nb<=1?40:0)+(mp>.2?30:mp>.12?15:5)+(dl>5?20:8)+(sa.key!=="none"?5:0)+rng(0,10));
+    let agency,subAgency,agencyColor,state,stateName,region,portal,portalName,regUrl,location,solNum;
+    if(scope==="federal"){
+      const ag=pick(FEDERAL_AGENCIES);agency=ag.code;subAgency=ag.sub.length?pick(ag.sub):ag.name;agencyColor=ag.color;
+      state="FED";stateName="Federal";region="Federal";portal="https://sam.gov/opportunities";portalName="SAM.gov";regUrl="https://sam.gov/content/entity-registration";
+      location=pick(FED_PLACES);solNum=`${ag.code}-SOL-2026-${String(i+1).padStart(4,"0")}`;
+    }else{
+      const st=scope==="all"?pick(ALL_STATES):ALL_STATES.find(s=>s.code===scope)||pick(ALL_STATES);
+      agency=pick(STATE_AGENCIES);subAgency="";agencyColor="#5E5CE6";
+      state=st.code;stateName=st.name;region=st.region;portal=st.portal;portalName=st.portalName;regUrl=st.reg;
+      location=st.name;solNum=`${st.code}-${String(2026000+i)}`;
+    }
+    return{id:`B-${scope}-${i}`,solNum,title:prod.name,psc:prod.psc,cat:prod.cat,agency,subAgency,agencyColor,state,stateName,region,portal,portalName,regUrl,location,
+      noticeType:nt.key,noticeLabel:nt.label,noticeColor:nt.color,setAside:sa.key,setAsideLabel:sa.label,setAsideColor:sa.color,contractType:pick(CONTRACT_TYPES),
+      qty,uc:Math.round(uc*100)/100,tv:Math.round(tv),ep:Math.round(ep),mp:Math.round(mp*100),nb,dl,status,score,
+      bestSup:Math.round(uc*(.55+Math.random()*.25)*100)/100};
+  }).sort((a,b)=>b.score-a.score);
+}
+const FED_BIDS=genBids("federal",80);
+const ST_BIDS=genBids("all",200);
+const ALL_BIDS=[...FED_BIDS,...ST_BIDS].sort((a,b)=>b.score-a.score);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SMALL COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function Badge({status}){const c={no_bids:{l:"NO BIDS",bg:"#FF3B30"},low_competition:{l:"LOW COMP",bg:"#FF9500"},closing_soon:{l:"CLOSING",bg:"#FFCC00"},open:{l:"OPEN",bg:"#34C759"}}[status]||{l:"OPEN",bg:"#34C759"};return<span style={{display:"inline-block",padding:"2px 6px",borderRadius:3,fontSize:8,fontWeight:700,letterSpacing:".05em",color:status==="closing_soon"?"#1a1a1a":"#fff",background:c.bg}} className="jm">{c.l}</span>}
+function ScoreM({score}){const c=score>=75?"#34C759":score>=50?"#FF9500":"#8E8E93";return<div style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:40,height:4,borderRadius:2,background:"#2a2a2e",overflow:"hidden"}}><div style={{width:`${score}%`,height:"100%",borderRadius:2,background:`linear-gradient(90deg,${c}88,${c})`}}/></div><span style={{fontSize:11,fontWeight:700,color:c,minWidth:18}} className="jm">{score}</span></div>}
+function Stat({label,value,sub,accent="#FF9500",icon}){return<div style={{background:"#1c1c1e",borderRadius:10,padding:"16px 18px",border:"1px solid #2a2a2e",position:"relative",overflow:"hidden"}}><div style={{position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${accent},transparent)`}}/><div style={{fontSize:10,color:"#8e8e93",letterSpacing:".06em",fontWeight:600,textTransform:"uppercase",marginBottom:5}} className="jm">{icon&&<span style={{marginRight:4}}>{icon}</span>}{label}</div><div style={{fontSize:22,fontWeight:800,color:"#f5f5f7",lineHeight:1.1}} className="sg">{value}</div>{sub&&<div style={{fontSize:10,color:accent,marginTop:2}} className="jm">{sub}</div>}</div>}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REGISTRATION / ONBOARDING WIZARD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function RegistrationWizard({onComplete,initialState}){
+  const[step,setStep]=useState(1);
+  const[form,setForm]=useState({bizName:"",email:"",phone:"",ein:"",bizType:"llc",address:"",city:"",st:initialState||"MN",zip:"",naics:"",psc:"",capabilities:"",samRegistered:false,selectedStates:new Set(initialState?[initialState]:[]),certs:new Set()});
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const toggleState=c=>setForm(p=>{const n=new Set(p.selectedStates);n.has(c)?n.delete(c):n.add(c);return{...p,selectedStates:n}});
+  const toggleCert=c=>setForm(p=>{const n=new Set(p.certs);n.has(c)?n.delete(c):n.add(c);return{...p,certs:n}});
+
+  const regions={Midwest:ALL_STATES.filter(s=>s.region==="Midwest"),Northeast:ALL_STATES.filter(s=>s.region==="Northeast"),Southeast:ALL_STATES.filter(s=>s.region==="Southeast"),West:ALL_STATES.filter(s=>s.region==="West")};
+
+  return<div style={{position:"fixed",inset:0,zIndex:2000,background:"rgba(0,0,0,.88)",backdropFilter:"blur(24px)",display:"flex",justifyContent:"center",alignItems:"center",animation:"fadeIn .3s"}}>
+    <div style={{width:"min(640px,94vw)",maxHeight:"90vh",overflow:"auto",background:"#1c1c1e",borderRadius:16,border:"1px solid #3a3a3c",boxShadow:"0 24px 80px rgba(0,0,0,.6)"}}>
+      <div style={{padding:"24px 28px 16px",borderBottom:"1px solid #2a2a2e"}}>
+        <div style={{fontSize:10,color:"#FF9500",fontWeight:700,letterSpacing:".1em",marginBottom:3}} className="jm">REGISTRATION WIZARD</div>
+        <h2 style={{fontSize:20,fontWeight:800,color:"#f5f5f7"}} className="sg">Get Set Up to Bid</h2>
+        <div style={{display:"flex",gap:6,marginTop:12}}>
+          {[1,2,3,4].map(s=><div key={s} style={{flex:1,height:3,borderRadius:2,background:s<=step?"#FF9500":"#2a2a2e",transition:"background .3s"}}/>)}
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
+          {["Business Info","Certifications","Select States","Review"].map((l,i)=><span key={l} style={{fontSize:9,color:i+1<=step?"#FF9500":"#636366"}} className="jm">{l}</span>)}
+        </div>
+      </div>
+
+      <div style={{padding:"20px 28px"}}>
+        {step===1&&<div style={{animation:"slideUp .3s"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div className="form-group" style={{gridColumn:"span 2"}}><label>Business Name</label><input value={form.bizName} onChange={e=>set("bizName",e.target.value)} placeholder="Your Company LLC"/></div>
+            <div className="form-group"><label>Email</label><input type="email" value={form.email} onChange={e=>set("email",e.target.value)} placeholder="you@company.com"/></div>
+            <div className="form-group"><label>Phone</label><input value={form.phone} onChange={e=>set("phone",e.target.value)} placeholder="(555) 123-4567"/></div>
+            <div className="form-group"><label>EIN / Tax ID</label><input value={form.ein} onChange={e=>set("ein",e.target.value)} placeholder="XX-XXXXXXX"/></div>
+            <div className="form-group"><label>Business Type</label>
+              <select value={form.bizType} onChange={e=>set("bizType",e.target.value)}><option value="llc">LLC</option><option value="corp">Corporation</option><option value="sole">Sole Proprietor</option><option value="partnership">Partnership</option><option value="nonprofit">Non-Profit</option></select>
+            </div>
+            <div className="form-group" style={{gridColumn:"span 2"}}><label>Address</label><input value={form.address} onChange={e=>set("address",e.target.value)} placeholder="123 Main St"/></div>
+            <div className="form-group"><label>City</label><input value={form.city} onChange={e=>set("city",e.target.value)}/></div>
+            <div className="form-group"><label>State</label><select value={form.st} onChange={e=>set("st",e.target.value)}>{ALL_STATES.map(s=><option key={s.code} value={s.code}>{s.name}</option>)}</select></div>
+            <div className="form-group"><label>NAICS Code(s)</label><input value={form.naics} onChange={e=>set("naics",e.target.value)} placeholder="e.g. 423610, 335311"/></div>
+            <div className="form-group"><label>PSC Code(s)</label><input value={form.psc} onChange={e=>set("psc",e.target.value)} placeholder="e.g. 6115, 2320"/></div>
+            <div className="form-group" style={{gridColumn:"span 2"}}><label>Capabilities / Products</label><textarea value={form.capabilities} onChange={e=>set("capabilities",e.target.value)} placeholder="Describe what you sell or services you provide..."/></div>
+          </div>
+        </div>}
+
+        {step===2&&<div style={{animation:"slideUp .3s"}}>
+          <p style={{fontSize:13,color:"#a1a1a6",marginBottom:16,lineHeight:1.5}}>Select any certifications your business holds. These unlock set-aside opportunities with less competition.</p>
+          {[
+            {key:"sam",label:"SAM.gov Registered",desc:"Required for all federal contracts",link:"https://sam.gov/content/entity-registration"},
+            {key:"sba_sb",label:"SBA Small Business",desc:"Opens small business set-aside bids"},
+            {key:"8a",label:"SBA 8(a) Business Development",desc:"For socially & economically disadvantaged businesses"},
+            {key:"hubzone",label:"HUBZone Certified",desc:"Historically Underutilized Business Zone"},
+            {key:"sdvosb",label:"SDVOSB",desc:"Service-Disabled Veteran-Owned Small Business"},
+            {key:"wosb",label:"WOSB / EDWOSB",desc:"Women-Owned Small Business"},
+            {key:"mbe",label:"Minority Business Enterprise",desc:"State-level MBE certification"},
+            {key:"dbe",label:"Disadvantaged Business Enterprise",desc:"DOT DBE program for transportation contracts"},
+          ].map(c=><div key={c.key} className="check-row" onClick={()=>toggleCert(c.key)}>
+            <div className={`check-box ${form.certs.has(c.key)?"checked":""}`}>{form.certs.has(c.key)?"✓":""}</div>
+            <div style={{flex:1}}><div style={{fontWeight:600,color:"#f5f5f7",fontSize:13}}>{c.label}</div><div style={{fontSize:11,color:"#636366"}}>{c.desc}</div></div>
+            {c.link&&<a href={c.link} target="_blank" rel="noopener" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:"#FF9500",textDecoration:"none"}} className="jm">Register ↗</a>}
+          </div>)}
+          <div style={{marginTop:14,padding:12,background:"#2a2a2e",borderRadius:8,fontSize:12,color:"#a1a1a6",lineHeight:1.5}}>
+            <span style={{color:"#FF9500",fontWeight:700}}>Tip:</span> If you're not SAM.gov registered yet, do that first — it takes 10-15 business days and is required to bid on any federal contract over $25,000.
+          </div>
+        </div>}
+
+        {step===3&&<div style={{animation:"slideUp .3s"}}>
+          <p style={{fontSize:13,color:"#a1a1a6",marginBottom:12,lineHeight:1.5}}>Select which states you want to monitor for bid opportunities. We'll show you the registration link for each state portal.</p>
+          <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
+            <button className="btn btn-secondary" style={{fontSize:11,padding:"5px 12px"}} onClick={()=>setForm(p=>({...p,selectedStates:new Set(ALL_STATES.map(s=>s.code))}))}>Select All 50</button>
+            <button className="btn btn-secondary" style={{fontSize:11,padding:"5px 12px"}} onClick={()=>setForm(p=>({...p,selectedStates:new Set()}))}>Clear All</button>
+            {REGIONS.slice(1).map(r=><button key={r.key} className="btn btn-secondary" style={{fontSize:11,padding:"5px 12px",color:r.color,borderColor:r.color+"44"}}
+              onClick={()=>setForm(p=>{const n=new Set(p.selectedStates);ALL_STATES.filter(s=>s.region===r.key).forEach(s=>n.add(s.code));return{...p,selectedStates:n}})}>{r.name}</button>)}
+          </div>
+          {Object.entries(regions).map(([rn,states])=><div key={rn} style={{marginBottom:12}}>
+            <div style={{fontSize:10,color:"#636366",fontWeight:700,letterSpacing:".08em",marginBottom:6}} className="jm">{rn.toUpperCase()}</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:4}}>
+              {states.map(s=><div key={s.code} className="check-row" onClick={()=>toggleState(s.code)} style={{padding:"4px 8px",borderRadius:6,background:form.selectedStates.has(s.code)?"#FF950010":"transparent"}}>
+                <div className={`check-box ${form.selectedStates.has(s.code)?"checked":""}`} style={{width:14,height:14,fontSize:8}}>{form.selectedStates.has(s.code)?"✓":""}</div>
+                <span style={{flex:1,fontSize:11}}><strong className="jm">{s.code}</strong> {s.name}</span>
+                <a href={s.reg} target="_blank" rel="noopener" onClick={e=>e.stopPropagation()} style={{fontSize:9,color:"#5E5CE6",textDecoration:"none"}} className="jm">Register ↗</a>
+              </div>)}
+            </div>
+          </div>)}
+        </div>}
+
+        {step===4&&<div style={{animation:"slideUp .3s"}}>
+          <div style={{background:"#2a2a2e",borderRadius:10,padding:16,marginBottom:14}}>
+            <div style={{fontSize:10,color:"#FF9500",fontWeight:700,letterSpacing:".08em",marginBottom:10}} className="jm">ACCOUNT SUMMARY</div>
+            {[["Business",form.bizName||"—"],["Email",form.email||"—"],["EIN",form.ein||"—"],["NAICS",form.naics||"—"],["PSC",form.psc||"—"]].map(([l,v])=>
+              <div key={l} style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:12,color:"#8e8e93"}}>{l}</span><span style={{fontSize:12,fontWeight:600,color:"#f5f5f7"}} className="jm">{v}</span></div>
+            )}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+            <div style={{background:"#2a2a2e",borderRadius:10,padding:16}}>
+              <div style={{fontSize:10,color:"#34C759",fontWeight:700,letterSpacing:".08em",marginBottom:8}} className="jm">CERTIFICATIONS ({form.certs.size})</div>
+              {form.certs.size===0?<span style={{fontSize:12,color:"#636366"}}>None selected</span>:
+              [...form.certs].map(c=><div key={c} style={{fontSize:12,color:"#a1a1a6",marginBottom:3}}>✓ {c.toUpperCase()}</div>)}
+            </div>
+            <div style={{background:"#2a2a2e",borderRadius:10,padding:16}}>
+              <div style={{fontSize:10,color:"#5E5CE6",fontWeight:700,letterSpacing:".08em",marginBottom:8}} className="jm">MONITORING ({form.selectedStates.size} states + Federal)</div>
+              <div style={{fontSize:12,color:"#a1a1a6",lineHeight:1.6}}>{form.selectedStates.size===50?"All 50 states":[...form.selectedStates].join(", ")||"None"}</div>
+            </div>
+          </div>
+          <div style={{padding:12,background:"linear-gradient(135deg,#1a2e1a,#1c1c1e)",borderRadius:8,border:"1px solid #2a3a2a",fontSize:12,color:"#a1a1a6",lineHeight:1.5}}>
+            <span style={{color:"#34C759",fontWeight:700}}>Ready to go!</span> BidPulse will scan SAM.gov and your {form.selectedStates.size} selected state portals for opportunities matching your NAICS/PSC codes and certifications. You'll get AI-scored opportunities ranked by profit potential and competition level.
+          </div>
+        </div>}
+      </div>
+
+      <div style={{padding:"16px 28px",borderTop:"1px solid #2a2a2e",display:"flex",justifyContent:"space-between"}}>
+        {step>1?<button className="btn btn-secondary" onClick={()=>setStep(step-1)}>← Back</button>:<div/>}
+        {step<4?<button className="btn btn-primary" onClick={()=>setStep(step+1)}>Next →</button>:
+          <button className="btn btn-primary" onClick={onComplete}>🚀 Launch Dashboard</button>}
+      </div>
+    </div>
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI ANALYSIS PANEL (with real portal link)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function AIPanel({bid,onClose}){
+  const[step,setStep]=useState(0);
+  const[sups,setSups]=useState([]);
+  const isFed=bid.state==="FED";
+  useEffect(()=>{
+    const ts=[400,900,1400,1900,2400].map((ms,i)=>setTimeout(()=>setStep(i+1),ms));
+    setTimeout(()=>setSups([...SUPPLIERS].sort(()=>Math.random()-.5).slice(0,4).map(s=>({...s,price:Math.round(bid.bestSup*(.82+Math.random()*.3)*100)/100,inStock:Math.random()>.2,moq:Math.floor(rng(1,10)),gsa:Math.random()>.4}))),2000);
+    return()=>ts.forEach(clearTimeout);
+  },[bid]);
+  const recBid=Math.round(bid.uc*.91),proj=Math.round((recBid-bid.bestSup)*bid.qty);
+
+  return<div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,.82)",backdropFilter:"blur(24px)",display:"flex",justifyContent:"center",alignItems:"center",animation:"fadeIn .3s"}} onClick={onClose}>
+    <div onClick={e=>e.stopPropagation()} style={{width:"min(720px,94vw)",maxHeight:"90vh",overflow:"auto",background:"#1c1c1e",borderRadius:14,border:"1px solid #3a3a3c",boxShadow:"0 24px 80px rgba(0,0,0,.6)"}}>
+      <div style={{padding:"20px 24px 12px",borderBottom:"1px solid #2a2a2e"}}>
+        <div style={{display:"flex",justifyContent:"space-between"}}>
+          <div>
+            <div style={{fontSize:9,color:"#FF9500",fontWeight:700,letterSpacing:".1em",marginBottom:3}} className="jm">AI ANALYSIS · {bid.portalName.toUpperCase()}</div>
+            <h2 style={{fontSize:18,fontWeight:800,color:"#f5f5f7",margin:0}} className="sg">{bid.title}</h2>
+            <div style={{fontSize:11,color:"#8e8e93",marginTop:3}}>{bid.solNum} · {isFed?bid.agency+" / "+bid.subAgency:bid.stateName+" — "+bid.agency}</div>
+            <div style={{display:"flex",gap:5,marginTop:6,flexWrap:"wrap"}}>
+              <span className="tag" style={{background:bid.noticeColor+"22",color:bid.noticeColor}}>{bid.noticeLabel}</span>
+              <span className="tag" style={{background:bid.setAsideColor+"22",color:bid.setAsideColor}}>{bid.setAsideLabel}</span>
+              <span className="tag" style={{background:"#2a2a2e",color:"#a1a1a6"}}>PSC {bid.psc}</span>
+              <span className="tag" style={{background:"#2a2a2e",color:"#a1a1a6"}}>{bid.contractType}</span>
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:"#2a2a2e",border:"none",color:"#8e8e93",width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>✕</button>
+        </div>
+      </div>
+      <div style={{padding:"14px 24px"}}>
+        {["Parsing solicitation requirements","Matching PSC "+bid.psc+" against suppliers","Pulling historical award data","Analyzing competition","Generating bid strategy"].map((l,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:9,marginBottom:7,opacity:step>=i?1:.3}}><div style={{width:16,height:16,borderRadius:"50%",background:step>i?"#34C759":"#2a2a2e",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700}}>{step>i?"✓":i+1}</div><span style={{fontSize:11,color:step>i?"#f5f5f7":"#636366"}} className="jm">{l}</span>{step===i&&<span style={{fontSize:10,color:"#FF9500",animation:"pulse 1s infinite"}}>●</span>}</div>)}
+      </div>
+      {step>=5&&<div style={{padding:"0 24px 24px",animation:"slideUp .4s"}}>
+        <div style={{background:"linear-gradient(135deg,#1a2e1a,#1c1c1e)",borderRadius:10,padding:16,marginBottom:12,border:"1px solid #2a3a2a",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div><div style={{fontSize:9,color:"#34C759",fontWeight:700,letterSpacing:".08em"}} className="jm">OPPORTUNITY SCORE</div><div style={{fontSize:36,fontWeight:800,color:"#34C759",lineHeight:1}} className="sg">{bid.score}/100</div></div>
+          <div style={{textAlign:"right"}}><div style={{fontSize:11,color:"#8e8e93"}}>Projected Profit</div><div style={{fontSize:20,fontWeight:800,color:"#f5f5f7"}} className="sg">{fmtUSD(proj)}</div><div style={{fontSize:10,color:"#34C759"}} className="jm">{bid.mp}% margin · {bid.qty} units</div></div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div style={{background:"#2a2a2e",borderRadius:8,padding:14}}>
+            <div style={{fontSize:9,color:"#FF9500",fontWeight:700,letterSpacing:".08em",marginBottom:8}} className="jm">BID STRATEGY</div>
+            {[["Unit Bid",fmtUSD(recBid)],["Total Bid",fmtUSD(recBid*bid.qty)],["Type",bid.contractType],["Location",bid.location]].map(([l,v])=><div key={l} style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:11,color:"#8e8e93"}}>{l}</span><span style={{fontSize:11,fontWeight:600,color:"#f5f5f7"}} className="jm">{v}</span></div>)}
+          </div>
+          <div style={{background:"#2a2a2e",borderRadius:8,padding:14}}>
+            <div style={{fontSize:9,color:"#5E5CE6",fontWeight:700,letterSpacing:".08em",marginBottom:8}} className="jm">COMPLIANCE</div>
+            {[[isFed?"SAM.gov Registration":"State Vendor Registration",true],[isFed?"FAR Compliance":"State procurement rules",true],[`Set-Aside (${bid.setAsideLabel})`,bid.setAside==="none"||Math.random()>.3],["Past Performance",Math.random()>.4],[isFed?"CAGE Code":"Tax ID Verified",true]].map(([l,ok])=><div key={l} style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}><span style={{fontSize:11,color:ok?"#34C759":"#FF3B30"}}>{ok?"✓":"✗"}</span><span style={{fontSize:11,color:ok?"#a1a1a6":"#FF3B30"}}>{l}</span></div>)}
+          </div>
+        </div>
+        <div style={{padding:"10px 12px",background:"#2a2a2e",borderRadius:8,marginBottom:12,fontSize:12,color:"#a1a1a6",lineHeight:1.5}}>
+          <span style={{color:"#FF9500",fontWeight:700}}>AI Insight:</span>{bid.nb<=1?` ${bid.nb===0?"Zero":"Only one"} response filed with ${bid.dl} days left. Low competition = high leverage. Bid at 91% of ceiling.`:` ${bid.nb} responses. Recommend aggressive 85% pricing.`}{bid.setAside!=="none"?` ${bid.setAsideLabel} set-aside limits the field further.`:""}
+        </div>
+        <div style={{background:"#2a2a2e",borderRadius:8,padding:14,marginBottom:12}}>
+          <div style={{fontSize:9,color:"#FF9500",fontWeight:700,letterSpacing:".08em",marginBottom:8}} className="jm">TOP SUPPLIERS</div>
+          {sups.map((s,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:i<sups.length-1?"1px solid #3a3a3c":"none"}}>
+            <div><div style={{fontSize:12,fontWeight:600,color:"#f5f5f7"}}>{s.name}</div><div style={{fontSize:10,color:"#8e8e93"}}>{s.loc} · {s.lt}{isFed&&` · CAGE: ${s.cage}`}{s.gsa&&<span style={{marginLeft:5,color:"#34C759",fontWeight:600}}>GSA ✓</span>}</div></div>
+            <div style={{textAlign:"right"}}><div style={{fontSize:13,fontWeight:700,color:"#34C759"}} className="jm">{fmtUSD(s.price)}/ea</div><div style={{fontSize:9,color:s.inStock?"#34C759":"#FF9500"}}>{s.inStock?"In Stock":"Ships "+s.lt}</div></div>
+          </div>)}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <button className="btn btn-primary" style={{fontSize:12}}>GENERATE BID PACKAGE →</button>
+          <a href={bid.portal} target="_blank" rel="noopener" style={{textDecoration:"none"}}>
+            <button className="btn btn-secondary" style={{width:"100%",fontSize:12}}>VERIFY ON {bid.portalName.toUpperCase().substring(0,24)} ↗</button>
+          </a>
+        </div>
+        {!isFed&&<a href={bid.regUrl} target="_blank" rel="noopener" style={{display:"block",marginTop:8,textAlign:"center",fontSize:11,color:"#5E5CE6",textDecoration:"none"}} className="jm">Not registered with {bid.stateName}? Register as a vendor ↗</a>}
+      </div>}
+    </div>
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function App(){
+  const[showReg,setShowReg]=useState(false);
+  const[onboarded,setOnboarded]=useState(false);
+  const[section,setSection]=useState("all");
+  const[regionFilter,setRegionFilter]=useState("all");
+  const[search,setSearch]=useState("");
+  const[sortBy,setSortBy]=useState("score");
+  const[noticeF,setNoticeF]=useState("all");
+  const[saF,setSaF]=useState("all");
+  const[catF,setCatF]=useState("all");
+  const[statusF,setStatusF]=useState(new Set(["no_bids","low_competition","closing_soon","open"]));
+  const[selBid,setSelBid]=useState(null);
+  const[scanning,setScanning]=useState(false);
+  const[scanProg,setScanProg]=useState(0);
+  const[sideOpen,setSideOpen]=useState(true);
+  const[stSearch,setStSearch]=useState("");
+
+  const runScan=()=>{setScanning(true);setScanProg(0);const iv=setInterval(()=>setScanProg(p=>{if(p>=100){clearInterval(iv);setScanning(false);return 100}return p+rng(2,6)}),160)};
+  const toggleStatus=s=>setStatusF(p=>{const n=new Set(p);n.has(s)?n.delete(s):n.add(s);return n});
+
+  const baseBids=useMemo(()=>{
+    if(section==="all")return ALL_BIDS;if(section==="federal")return FED_BIDS;if(section==="states")return ST_BIDS;
+    return ST_BIDS.filter(b=>b.state===section);
+  },[section]);
+
+  const filtered=useMemo(()=>baseBids.filter(b=>{
+    if(!statusF.has(b.status))return false;if(noticeF!=="all"&&b.noticeType!==noticeF)return false;if(saF!=="all"&&b.setAside!==saF)return false;if(catF!=="all"&&b.cat!==catF)return false;
+    if(section==="states"&&regionFilter!=="all"&&b.region!==regionFilter)return false;
+    if(search){const q=search.toLowerCase();return b.title.toLowerCase().includes(q)||b.agency.toLowerCase().includes(q)||b.solNum.toLowerCase().includes(q)||b.psc.includes(q)||b.stateName.toLowerCase().includes(q)||b.location.toLowerCase().includes(q)||(b.subAgency||"").toLowerCase().includes(q)}
+    return true;
+  }).sort((a,b)=>sortBy==="score"?b.score-a.score:sortBy==="value"?b.tv-a.tv:sortBy==="profit"?b.ep-a.ep:a.dl-b.dl),[baseBids,statusF,noticeF,saF,catF,regionFilter,search,sortBy,section]);
+
+  const pipe=filtered.reduce((s,b)=>s+b.tv,0),prof=filtered.reduce((s,b)=>s+b.ep,0),noBids=filtered.filter(b=>b.nb===0).length,avgSc=Math.round(filtered.reduce((s,b)=>s+b.score,0)/(filtered.length||1));
+  const filtStates=ALL_STATES.filter(s=>!stSearch||s.name.toLowerCase().includes(stSearch.toLowerCase())||s.code.toLowerCase().includes(stSearch.toLowerCase()));
+  const isFed=section==="federal";
+  const scanLabel=section==="federal"?"SAM.GOV":section==="states"||section==="all"?"ALL PORTALS":ALL_STATES.find(s=>s.code===section)?.portalName?.toUpperCase().substring(0,20)||"PORTAL";
+
+  return<div style={{display:"flex",minHeight:"100vh",background:"#000"}}>
+    {/* SIDEBAR */}
+    <div style={{width:sideOpen?230:0,minWidth:sideOpen?230:0,transition:"all .2s",overflow:"hidden",borderRight:"1px solid #1c1c1e",background:"#0a0a0a",display:"flex",flexDirection:"column"}}>
+      <div style={{padding:"12px 12px 6px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <div style={{width:30,height:30,borderRadius:8,background:"linear-gradient(135deg,#FF9500,#FF6B00)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:800,color:"#fff"}} className="sg">B</div>
+          <div><div style={{fontSize:14,fontWeight:800,color:"#f5f5f7",lineHeight:1}} className="sg">BidPulse</div><div style={{fontSize:8,color:"#636366",letterSpacing:".1em"}} className="jm">PROCUREMENT INTEL</div></div>
+        </div>
+        <div style={{fontSize:9,color:"#636366",letterSpacing:".08em",fontWeight:700,marginBottom:5,padding:"0 11px"}} className="jm">SCOPE</div>
+        {[{key:"all",label:"🌐  All Bids",ct:ALL_BIDS.length},{key:"federal",label:"🏛️  Federal",ct:FED_BIDS.length},{key:"states",label:"🗺️  All 50 States",ct:ST_BIDS.length}].map(n=><div key={n.key} className={`si ${section===n.key?"on":""}`} onClick={()=>setSection(n.key)}><span style={{flex:1}}>{n.label}</span><span style={{fontSize:9,color:"#636366"}} className="jm">{n.ct}</span></div>)}
+        <div style={{marginTop:10,marginBottom:5}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0 11px"}}>
+            <span style={{fontSize:9,color:"#636366",letterSpacing:".08em",fontWeight:700}} className="jm">STATES</span>
+            <button onClick={()=>setShowReg(true)} style={{fontSize:9,color:"#FF9500",background:"none",border:"none",cursor:"pointer",fontWeight:600}} className="jm">+ Register</button>
+          </div>
+        </div>
+        <input placeholder="Search states..." value={stSearch} onChange={e=>setStSearch(e.target.value)} style={{width:"100%",marginBottom:6,fontSize:10,padding:"5px 9px"}}/>
+      </div>
+      <div style={{flex:1,overflow:"auto",padding:"0 12px 12px"}}>
+        {filtStates.map(s=>{const ct=ST_BIDS.filter(b=>b.state===s.code).length,nb=ST_BIDS.filter(b=>b.state===s.code&&b.nb===0).length;
+          return<div key={s.code} className={`si ${section===s.code?"on":""}`} onClick={()=>setSection(s.code)} style={{padding:"4px 9px",fontSize:10}}>
+            <span style={{fontWeight:600,minWidth:20}} className="jm">{s.code}</span>
+            <span style={{flex:1,color:section===s.code?"#FF9500":"#a1a1a6",fontSize:10,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</span>
+            {nb>0&&<span style={{fontSize:8,color:"#FF3B30",fontWeight:700}} className="jm">{nb}</span>}
+            <span style={{fontSize:8,color:"#636366"}} className="jm">{ct}</span>
+          </div>})}
+      </div>
+    </div>
+
+    {/* MAIN */}
+    <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0}}>
+      <header style={{padding:"10px 18px",borderBottom:"1px solid #1c1c1e",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100,background:"rgba(0,0,0,.88)",backdropFilter:"blur(20px)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={()=>setSideOpen(!sideOpen)} style={{background:"#2a2a2e",border:"none",color:"#8e8e93",width:26,height:26,borderRadius:6,cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>☰</button>
+          <div>
+            <h1 style={{fontSize:15,fontWeight:800,color:"#f5f5f7",lineHeight:1.1}} className="sg">{section==="all"?"All Opportunities":section==="federal"?"Federal (SAM.gov)":section==="states"?"All 50 States":ALL_STATES.find(s=>s.code===section)?.name||section}</h1>
+            <div style={{fontSize:8,color:"#636366",letterSpacing:".08em"}} className="jm">{section==="federal"?"SAM.GOV · FPDS":section==="all"?"FEDERAL + 50 STATE PORTALS":section==="states"?"50 STATE PROCUREMENT PORTALS":ALL_STATES.find(s=>s.code===section)?.portalName||""}</div>
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <button onClick={()=>setShowReg(true)} className="btn btn-secondary" style={{fontSize:10,padding:"5px 12px"}}>📋 Register</button>
+          <button onClick={runScan} disabled={scanning} style={{padding:"6px 14px",background:scanning?"#2a2a2e":"linear-gradient(135deg,#FF9500,#FF6B00)",border:"none",borderRadius:7,color:"#fff",fontSize:10,fontWeight:700,cursor:scanning?"default":"pointer",position:"relative",overflow:"hidden"}} className="jm">
+            {scanning?`SCANNING ${Math.min(100,Math.round(scanProg))}%`:`⚡ SCAN ${scanLabel}`}
+            {scanning&&<div style={{position:"absolute",bottom:0,left:0,height:2,background:"#FF9500",width:`${Math.min(100,scanProg)}%`}}/>}
+          </button>
+          <div style={{width:7,height:7,borderRadius:"50%",background:scanning?"#FF9500":"#34C759",boxShadow:`0 0 6px ${scanning?"rgba(255,149,0,.5)":"rgba(52,199,89,.5)"}`,animation:scanning?"pulse 1s infinite":"none"}}/>
+        </div>
+      </header>
+
+      {scanning&&<div style={{height:2,background:"#1c1c1e",overflow:"hidden"}}><div style={{height:"100%",background:"linear-gradient(90deg,#FF9500,#FF6B00,#FF9500)",backgroundSize:"200% 100%",animation:"gradShift 1.5s ease infinite",width:`${Math.min(100,scanProg)}%`}}/></div>}
+
+      <div style={{flex:1,overflow:"auto",padding:"14px 18px"}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
+          <Stat icon="📊" label="Pipeline" value={fmtUSD(pipe)} sub={`${filtered.length} opportunities`} accent="#FF9500"/>
+          <Stat icon="💰" label="Profit" value={fmtUSD(prof)} sub={`${Math.round(prof/(pipe||1)*100)}% avg margin`} accent="#34C759"/>
+          <Stat icon="🎯" label="Zero-Bid" value={noBids} sub="No responses" accent="#FF3B30"/>
+          <Stat icon="⚡" label="Avg Score" value={avgSc+"/100"} accent="#5E5CE6"/>
+          <Stat icon="🗺️" label="Sources" value={section==="federal"?"14 Agencies":new Set(filtered.map(b=>b.state)).size+" Jurisdictions"} accent="#30D5C8"/>
+        </div>
+
+        {/* Filters */}
+        <div style={{background:"#1c1c1e",borderRadius:10,padding:"12px 14px",marginBottom:12,border:"1px solid #2a2a2e"}}>
+          <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center",flexWrap:"wrap"}}>
+            <div style={{position:"relative",flex:1,minWidth:180}}><span style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:"#636366",fontSize:12}}>⌕</span><input placeholder="Search bids, agencies, PSC, locations..." value={search} onChange={e=>setSearch(e.target.value)} style={{width:"100%",paddingLeft:28}}/></div>
+            {(section==="states"||section==="all")&&<select value={regionFilter} onChange={e=>setRegionFilter(e.target.value)} style={{minWidth:110}}>{REGIONS.map(r=><option key={r.key} value={r.key}>{r.name}</option>)}</select>}
+            <select value={noticeF} onChange={e=>setNoticeF(e.target.value)} style={{minWidth:120}}><option value="all">All Notices</option>{NOTICE_TYPES.map(n=><option key={n.key} value={n.key}>{n.label}</option>)}</select>
+            <select value={saF} onChange={e=>setSaF(e.target.value)} style={{minWidth:110}}><option value="all">Set-Asides</option>{SET_ASIDES.map(s=><option key={s.key} value={s.key}>{s.label}</option>)}</select>
+            <select value={catF} onChange={e=>setCatF(e.target.value)} style={{minWidth:130}}><option value="all">All Categories</option>{["Power","Fleet","HVAC","IT","Electrical","Medical","Construction","Safety","Facilities","Office","Plumbing","Grounds","Comms"].map(c=><option key={c} value={c}>{c}</option>)}</select>
+            <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{minWidth:100}}><option value="score">Score</option><option value="value">Value</option><option value="profit">Profit</option><option value="closing">Closing</option></select>
+          </div>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+            {[{key:"no_bids",label:"No Bids",color:"#FF3B30"},{key:"low_competition",label:"Low Comp",color:"#FF9500"},{key:"closing_soon",label:"Closing",color:"#FFCC00"},{key:"open",label:"Open",color:"#34C759"}].map(s=><span key={s.key} className="chip" onClick={()=>toggleStatus(s.key)} style={{background:statusF.has(s.key)?s.color+"22":"transparent",color:statusF.has(s.key)?s.color:"#636366",borderColor:statusF.has(s.key)?s.color+"44":"#2a2a2e",fontSize:9,padding:"3px 8px"}}>{s.label}</span>)}
+          </div>
+        </div>
+
+        {/* Table */}
+        <div style={{background:"#1c1c1e",borderRadius:10,border:"1px solid #2a2a2e",overflow:"hidden"}}>
+          <div style={{display:"grid",gridTemplateColumns:isFed?"2.2fr 1fr .7fr .85fr .85fr .45fr .45fr .55fr":"2.2fr .7fr .55fr .85fr .85fr .45fr .45fr .55fr",padding:"9px 14px",borderBottom:"1px solid #2a2a2e",fontSize:8,fontWeight:700,color:"#636366",letterSpacing:".08em",textTransform:"uppercase"}} className="jm">
+            <span>Solicitation</span><span>{isFed?"Agency":"State"}</span><span>{isFed?"Sub":"Set-Aside"}</span><span>Value</span><span>Profit</span><span>Bids</span><span>Days</span><span>Score</span>
+          </div>
+          <div style={{maxHeight:460,overflow:"auto"}}>
+            {filtered.slice(0,120).map((bid,i)=><div key={bid.id+i} className="row" onClick={()=>setSelBid(bid)} style={{display:"grid",gridTemplateColumns:isFed?"2.2fr 1fr .7fr .85fr .85fr .45fr .45fr .55fr":"2.2fr .7fr .55fr .85fr .85fr .45fr .45fr .55fr",padding:"10px 14px",borderBottom:"1px solid #141416",alignItems:"center",animation:`slideUp .2s ease ${i*.01}s both`}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:600,color:"#f5f5f7",marginBottom:1}}>{bid.title}</div>
+                <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+                  <span style={{fontSize:9,color:"#636366"}} className="jm">{bid.solNum}</span>
+                  <Badge status={bid.status}/>
+                  <span className="tag" style={{background:bid.noticeColor+"15",color:bid.noticeColor,fontSize:7}}>{bid.noticeLabel}</span>
+                  <a href={bid.portal} target="_blank" rel="noopener" onClick={e=>e.stopPropagation()} style={{fontSize:8,color:"#5E5CE6",textDecoration:"none"}} className="jm">↗ verify</a>
+                </div>
+              </div>
+              {isFed?<><div style={{fontSize:10,fontWeight:600,color:bid.agencyColor}} className="jm">{bid.agency}</div><div style={{fontSize:9,color:"#8e8e93"}}>{bid.subAgency}</div></>:<>
+                <div><div style={{fontSize:10,fontWeight:600,color:"#5E5CE6"}} className="jm">{bid.state}</div><div style={{fontSize:8,color:"#636366",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:80}}>{bid.agency}</div></div>
+                <span style={{fontSize:8,color:bid.setAsideColor,fontWeight:600}} className="jm">{bid.setAside==="none"?"F&O":bid.setAsideLabel}</span>
+              </>}
+              <span style={{fontSize:11,fontWeight:600,color:"#f5f5f7"}} className="jm">{fmtUSD(bid.tv)}</span>
+              <div><span style={{fontSize:11,fontWeight:600,color:"#34C759"}} className="jm">{fmtUSD(bid.ep)}</span><span style={{fontSize:8,color:"#636366",marginLeft:2}}>{bid.mp}%</span></div>
+              <span style={{fontSize:12,fontWeight:700,color:bid.nb===0?"#FF3B30":bid.nb<=1?"#FF9500":"#8e8e93"}} className="jm">{bid.nb}</span>
+              <span style={{fontSize:10,color:bid.dl<=3?"#FF3B30":bid.dl<=7?"#FFCC00":"#8e8e93",fontWeight:bid.dl<=3?700:400}} className="jm">{bid.dl}d</span>
+              <ScoreM score={bid.score}/>
+            </div>)}
+          </div>
+          <div style={{padding:"8px 14px",borderTop:"1px solid #2a2a2e",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontSize:10,color:"#636366"}} className="jm">{filtered.length} bids · {fmtUSD(pipe)} pipeline</span>
+            <span style={{fontSize:9,color:"#636366"}}>Click row → AI analysis + supplier match | "↗ verify" → actual portal</span>
+          </div>
+        </div>
+
+        {/* How it works + Architecture */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginTop:14}}>
+          {[{s:"01",t:"Ingest",d:"SAM.gov API + scrape all 50 state portals every 15 min. Pre-sols, RFPs, RFQs, IFBs, sole source.",c:"#FF9500"},
+            {s:"02",t:"Classify",d:"AI maps by PSC, NAICS, set-aside, and contract vehicle. Matches your registered capabilities.",c:"#5E5CE6"},
+            {s:"03",t:"Source",d:"Cross-references Grainger, HD Supply, Ferguson APIs for real-time pricing & availability.",c:"#30D5C8"},
+            {s:"04",t:"Win",d:"Generates compliant bid packages with pricing strategy, reps & certs, and portal-specific forms.",c:"#34C759"},
+          ].map(c=><div key={c.s} style={{background:"#1c1c1e",borderRadius:10,padding:"16px",border:"1px solid #2a2a2e",position:"relative",overflow:"hidden"}}><div style={{position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${c.c},transparent)`}}/><div style={{fontSize:22,fontWeight:800,color:c.c+"33",lineHeight:1}} className="sg">{c.s}</div><h3 style={{fontSize:13,fontWeight:700,color:"#f5f5f7",margin:"4px 0 3px"}} className="sg">{c.t}</h3><p style={{fontSize:10,color:"#8e8e93",lineHeight:1.4}}>{c.d}</p></div>)}
+        </div>
+
+        {/* Sources bar */}
+        <div style={{marginTop:12,padding:"9px 14px",background:"#1c1c1e",borderRadius:8,border:"1px solid #2a2a2e",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6}}>
+          <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+            {["SAM.gov API","FPDS","USASpending","GSA eBuy","50 State Portals","BidNet","Bonfire","Periscope"].map(s=><span key={s} style={{fontSize:8,color:"#636366"}} className="jm"><span style={{color:"#34C759",marginRight:3}}>●</span>{s}</span>)}
+          </div>
+          <span style={{fontSize:8,color:"#636366"}} className="jm">Last sync: 3 min ago</span>
+        </div>
+      </div>
+    </div>
+
+    {selBid&&<AIPanel bid={selBid} onClose={()=>setSelBid(null)}/>}
+    {showReg&&<RegistrationWizard onComplete={()=>{setShowReg(false);setOnboarded(true)}} initialState={typeof section==="string"&&section.length===2&&section!=="al"?section:"MN"}/>}
+  </div>;
+}
+
+ReactDOM.render(<App/>,document.getElementById("root"));
+</script>
+</body>
+</html>
